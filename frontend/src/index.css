@@ -1,0 +1,121 @@
+/* BloomCycle — Soft-luxury design system */
+
+:root {
+  --rose:        #f0657d;
+  --rose-light:  #fde8ec;
+  --rose-dark:   #c94a62;
+  --blush:       #fdf0f3;
+  --mauve:       #b07080;
+  --lavender:    #e8dff0;
+  --sage:        #d5e8df;
+  --cream:       #fdf8f5;
+  --text:        #2d1a21;
+  --text-muted:  #8a6070;
+  --border:      #ecd8df;
+  --white:       #ffffff;
+  --shadow-sm:   0 1px 3px rgba(176,112,128,.12);
+  --shadow:      0 4px 16px rgba(176,112,128,.15);
+  --shadow-lg:   0 12px 40px rgba(176,112,128,.18);
+  --radius-sm:   8px;
+  --radius:      16px;
+  --radius-lg:   24px;
+  --font-serif:  'Cormorant Garamond', Georgia, serif;
+  --font-sans:   'DM Sans', system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--cream);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: var(--font-sans); }
+input, textarea, select { font-family: var(--font-sans); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+/* Utility classes */
+.serif { font-family: var(--font-serif); }
+.text-muted { color: var(--text-muted); }
+.text-rose { color: var(--rose); }
+
+/* Card */
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+
+/* Button styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 99px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  transition: all .2s ease;
+}
+
+.btn-primary {
+  background: var(--rose);
+  color: white;
+}
+.btn-primary:hover { background: var(--rose-dark); transform: translateY(-1px); box-shadow: var(--shadow); }
+
+.btn-outline {
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--text);
+}
+.btn-outline:hover { border-color: var(--rose); color: var(--rose); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  padding: 8px 12px;
+}
+.btn-ghost:hover { background: var(--blush); color: var(--rose); }
+
+/* Input */
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--white);
+  outline: none;
+  transition: border-color .2s;
+}
+.input:focus { border-color: var(--rose); }
+.input::placeholder { color: var(--text-muted); }
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+.fade-in { animation: fadeIn .4s ease both; }
