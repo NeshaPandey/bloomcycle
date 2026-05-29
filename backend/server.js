@@ -24,7 +24,10 @@ const io     = new Server(server, {
 
 // ── Middleware ────────────────────────────────────────────────
 app.use(helmet());
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
+app.use(cors({ 
+  origin: true,
+  credentials: true 
+}));
 app.use(express.json());
 
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true });
