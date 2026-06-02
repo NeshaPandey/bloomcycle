@@ -91,4 +91,24 @@ router.get('/conversations/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// POST /api/messages  — send a message (REST fallback)
+router.post('/', async (req, res) => {
+  const { conversation_id, body } = req.body;
+  if (!conversation_id || !body?.trim()) 
+    return res.status(400).json({ error: 'conversation_id and body required' });
+  try {
+    const member = await db.query(
+      'SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND user_id=$2',
+      [conversation_id, req.user.id]
+    );
+    if (!member.rowCount) return res.status(403).json({ error: 'Forbidden' });
+    const { rows } = await db.query(
+      `INSERT INTO messages (conversation_id, sender_id, body)
+       VALUES ($1,$2,$3) RETURNING *`,
+      [conversation_id, req.user.id, body]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
