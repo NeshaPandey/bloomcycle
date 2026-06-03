@@ -288,27 +288,31 @@ function HomePage() {
 
       {/* Key stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
-        <StatCard
-          label="Next Period"
-          value={nextPeriodDays !== null ? (nextPeriodDays <= 0 ? 'Today!' : `${nextPeriodDays}d away`) : '—'}
-          sub={predict?.next_period_start || 'Log 2+ cycles to predict'}
-          emoji="🩸"
-          color="#f0657d"
-        />
-        <StatCard
-          label="Cycle Length"
-          value={predict?.avg_cycle_length ? `${predict.avg_cycle_length} days` : '—'}
-          sub="Average"
-          emoji="📅"
-          color="#9a7ab0"
-        />
-        <StatCard
-          label="Ovulation"
-          value={predict?.ovulation_date ? `${daysUntil(predict.ovulation_date)}d` : '—'}
-          sub={predict?.ovulation_date || 'Predicted date'}
-          emoji="✨"
-          color="#70a8b0"
-        />
+       <StatCard
+        label="Next Period"
+        value={predict?.days_until_next_period !== undefined
+          ? (predict.days_until_next_period <= 0 ? 'Today!' : `${predict.days_until_next_period}d away`)
+          : '—'}
+        sub={predict?.next_period_start || 'Log a cycle to predict'}
+        emoji="🩸"
+        color="#f0657d"
+      />
+      <StatCard
+        label="Current Phase"
+        value={predict?.current_phase || '—'}
+        sub={predict?.current_cycle_day ? `Day ${predict.current_cycle_day} of cycle` : 'No active cycle'}
+        emoji="🌙"
+        color="#9a7ab0"
+      />
+      <StatCard
+        label="Ovulation"
+        value={predict?.ovulation_date
+          ? `${Math.ceil((new Date(predict.ovulation_date) - new Date()) / 86400000)}d`
+          : '—'}
+        sub={predict?.ovulation_date || 'Predicted date'}
+        emoji="✨"
+        color="#70a8b0"
+      />
       </div>
 
       {/* Fertile window banner */}
