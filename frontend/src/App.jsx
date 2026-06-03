@@ -594,6 +594,28 @@ function LogPage() {
         </div>
       ))}
 
+      {/* Cycle logging buttons */}
+      <div className="card" style={{ padding: 20, marginBottom: 16, background: 'var(--rose-light)' }}>
+        <div style={{ fontWeight: 600, marginBottom: 12, color: 'var(--rose)' }}>🩸 Period Tracking</div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-primary" onClick={async () => {
+            try {
+              await api.post('/cycles/start', { start_date: date });
+              alert('✅ Period start logged!');
+            } catch(e) { alert('Error: ' + (e.response?.data?.error || e.message)); }
+          }}>🩸 Start Period Today</button>
+          <button className="btn btn-outline" onClick={async () => {
+            try {
+              const cycles = await api.get('/cycles');
+              const latest = cycles.data[0];
+              if (!latest) return alert('No cycle found to end');
+              await api.patch(`/cycles/${latest.id}/end`, { end_date: date });
+              alert('✅ Period end logged!');
+            } catch(e) { alert('Error: ' + (e.response?.data?.error || e.message)); }
+          }}>⬜ End Period Today</button>
+        </div>
+      </div>
+
       <button className="btn btn-primary" onClick={save} disabled={saving}
         style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: 16 }}>
         {saved ? '✓ Saved!' : saving ? 'Saving…' : 'Save Today\'s Log'}
