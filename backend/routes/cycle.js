@@ -36,7 +36,7 @@ router.patch('/:id/end', async (req, res) => {
     const { rows } = await db.query(
       `UPDATE cycles
        SET end_date=$1,
-           period_length = DATE_PART('day', $1::date - start_date) + 1
+           period_length = ($1::date - start_date::date) + 1
        WHERE id=$2 AND user_id=$3 RETURNING *`,
       [end_date, req.params.id, req.user.id]
     );
