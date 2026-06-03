@@ -1,37 +1,17 @@
-const router    = require('express').Router();
-const Anthropic = require('@anthropic-ai/sdk');
-const db        = require('../db');
+const router = require('express').Router();
+const db     = require('../db');
 const { authenticate } = require('../middleware/auth');
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 router.use(authenticate);
 
-const SYSTEM_PROMPT = `You are Bloom, a warm, empathetic, and knowledgeable women's health assistant built into the BloomCycle app.
+const SYSTEM_PROMPT = `You are Bloom, a warm, empathetic women's health assistant built into the BloomCycle app. Help users understand their menstrual cycles, symptoms, moods, cravings, and overall reproductive health. Be warm, supportive, and non-judgmental. Always recommend consulting a healthcare professional for medical advice. Keep responses concise (150-300 words). Never diagnose conditions.`;
 
-You help users understand their menstrual cycles, symptoms, moods, cravings, and overall reproductive health.
-
-Guidelines:
-- Be warm, supportive, and non-judgmental
-- Provide accurate, evidence-based health information
-- Always recommend consulting a healthcare professional for medical advice
-- You can discuss: period tracking, PMS, PMDD, PCOS, endometriosis, fertility awareness, menopause, nutrition during cycle phases, exercise tips, mental health, and general wellness
-- Never diagnose conditions — always say "this could be related to…" and suggest seeing a doctor
-- Keep responses concise but thorough (150-300 words unless more detail is clearly needed)
-- Use simple, friendly language — not overly clinical
-- Acknowledge feelings before giving information
-
-Remember: You are a supportive companion, not a replacement for medical care.`;
-
-// POST /api/ai/chat  — send a message to Bloom AI
 router.post('/chat', async (req, res) => {
   const { message, conversation_id } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: 'message required' });
 
   try {
     let convId = conversation_id;
-
-    // Create or fetch conversation
     if (!convId) {
       const { rows } = await db.query(
         'INSERT INTO ai_conversations (user_id) VALUES ($1) RETURNING id',
@@ -39,7 +19,6 @@ router.post('/chat', async (req, res) => {
       );
       convId = rows[0].id;
     } else {
-      // Validate ownership
       const check = await db.query(
         'SELECT id FROM ai_conversations WHERE id=$1 AND user_id=$2',
         [convId, req.user.id]
@@ -47,7 +26,6 @@ router.post('/chat', async (req, res) => {
       if (!check.rowCount) return res.status(403).json({ error: 'Forbidden' });
     }
 
-    // Load history (last 20 messages for context)
     const history = await db.query(
       `SELECT role, content FROM ai_messages
        WHERE ai_conversation_id=$1 ORDER BY created_at ASC LIMIT 20`,
@@ -59,40 +37,48 @@ router.post('/chat', async (req, res) => {
       { role: 'user', content: message }
     ];
 
-    // Store user message
     await db.query(
       'INSERT INTO ai_messages (ai_conversation_id, role, content) VALUES ($1,$2,$3)',
       [convId, 'user', message]
     );
 
-    // Call Claude
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      messages,
+    // Call Groq (free!)
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'llama3-8b-8192',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          ...messages
+        ],
+        max_tokens: 1024,
+      })
     });
 
-    const assistantReply = response.content[0].text;
+    const data = await response.json();
+    const assistantReply = data.choices?.[0]?.message?.content;
 
-    // Store assistant message
+    if (!assistantReply) {
+      console.error('Groq error:', data);
+      return res.status(500).json({ error: 'AI service error' });
+    }
+
     await db.query(
       'INSERT INTO ai_messages (ai_conversation_id, role, content) VALUES ($1,$2,$3)',
       [convId, 'assistant', assistantReply]
     );
 
-    res.json({
-      conversation_id: convId,
-      reply: assistantReply,
-      usage: response.usage,
-    });
+    res.json({ conversation_id: convId, reply: assistantReply });
   } catch (err) {
     console.error('AI error:', err);
     res.status(500).json({ error: 'AI service error' });
   }
 });
 
-// GET /api/ai/conversations  — list user's AI conversations
 router.get('/conversations', async (req, res) => {
   try {
     const { rows } = await db.query(
@@ -108,7 +94,6 @@ router.get('/conversations', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET /api/ai/conversations/:id  — fetch full chat history
 router.get('/conversations/:id', async (req, res) => {
   try {
     const check = await db.query(
@@ -116,7 +101,6 @@ router.get('/conversations/:id', async (req, res) => {
       [req.params.id, req.user.id]
     );
     if (!check.rowCount) return res.status(404).json({ error: 'Not found' });
-
     const { rows } = await db.query(
       'SELECT role, content, created_at FROM ai_messages WHERE ai_conversation_id=$1 ORDER BY created_at ASC',
       [req.params.id]
