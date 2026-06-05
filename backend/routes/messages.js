@@ -131,4 +131,15 @@ router.post('/', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// DELETE /api/messages/:id
+router.delete('/:id', async (req, res) => {
+  try {
+    const { rowCount } = await db.query(
+      'DELETE FROM messages WHERE id=$1 AND sender_id=$2',
+      [req.params.id, req.user.id]
+    );
+    if (!rowCount) return res.status(403).json({ error: 'Not your message or not found' });
+    res.json({ deleted: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 module.exports = router;
