@@ -101,4 +101,16 @@ router.post('/posts/:id/comments', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// DELETE /api/community/posts/:id
+router.delete('/posts/:id', async (req, res) => {
+  try {
+    const { rowCount } = await db.query(
+      'DELETE FROM posts WHERE id=$1 AND author_id=$2',
+      [req.params.id, req.user.id]
+    );
+    if (!rowCount) return res.status(403).json({ error: 'Not your post or not found' });
+    res.json({ deleted: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
