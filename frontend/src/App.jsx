@@ -793,7 +793,23 @@ function MessagesPage() {
   const [input, setInput]      = useState('');
   const [searchQ, setSearchQ]  = useState('');
   const [searchRes, setSearchRes] = useState([]);
+  const [socket, setSocket]    = useState(null);
   const msgsEndRef = useRef(null);
+
+  // Setup Socket.IO
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const { io } = require('socket.io-client');
+    const s = io('https://bloomcycle-production.up.railway.app', {
+      auth: { token }
+    });
+    s.on('connect', () => console.log('Socket connected!'));
+    s.on('new:message', (msg) => {
+      setMsgs(prev => [...prev, msg]);
+    });
+    setSocket(s);
+    return () => s.disconnect();
+  }, []);
 
   useEffect(() => {
     api.get('/messages/conversations').then(r => setConvos(r.data));
@@ -801,8 +817,9 @@ function MessagesPage() {
 
   useEffect(() => {
     if (activeConvo) {
-      api.get(`/messages/conversations/${activeConvo.conversation_id || activeConvo.id}`)
-        .then(r => setMsgs(r.data));
+      const convoId = activeConvo.conversation_id || activeConvo.id;
+      api.get(`/messages/conversations/${convoId}`).then(r => setMsgs(r.data));
+      socket?.emit('join:conversation', convoId);
     }
   }, [activeConvo]);
 
@@ -820,8 +837,11 @@ function MessagesPage() {
   const startConvo = async (targetUser) => {
     const { data } = await api.post('/messages/conversations', { target_user_id: targetUser.id });
     setSearchQ(''); setSearchRes([]);
-    const convo = { conversation_id: data.conversation_id, other_user_name: targetUser.display_name,
-      other_username: targetUser.username };
+    const convo = {
+      conversation_id: data.conversation_id,
+      other_user_name: targetUser.display_name,
+      other_username: targetUser.username
+    };
     setActiveConvo(convo);
     api.get('/messages/conversations').then(r => setConvos(r.data));
   };
@@ -829,10 +849,19 @@ function MessagesPage() {
   const send = async () => {
     if (!input.trim() || !activeConvo) return;
     const convoId = activeConvo.conversation_id || activeConvo.id;
-    await api.post('/messages', { conversation_id: convoId, body: input });
+    const body = input;
     setInput('');
-    const r = await api.get(`/messages/conversations/${convoId}`);
-    setMsgs(r.data);
+    // Send via socket for real-time
+    if (socket?.connected) {
+      socket.emit('send:message', { conversationId: convoId, body });
+    } else {
+      // Fallback to REST
+      await api.post('/messages', { conversation_id: convoId, body });
+      const r = await api.get(`/messages/conversations/${convoId}`);
+      setMsgs(r.data);
+    }
+    // Refresh conversation list
+    api.get('/messages/conversations').then(r => setConvos(r.data));
   };
 
   return (
@@ -870,7 +899,7 @@ function MessagesPage() {
           {convos.map(c => (
             <div key={c.id} onClick={() => setActiveConvo(c)}
               style={{
-                padding: '14px 16px', cursor: 'pointer', transition: 'background .1s',
+                padding: '14px 16px', cursor: 'pointer',
                 background: activeConvo?.id === c.id ? 'var(--rose-light)' : 'transparent',
                 borderBottom: '1px solid var(--border)',
                 display: 'flex', gap: 10, alignItems: 'center',
@@ -882,8 +911,9 @@ function MessagesPage() {
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{c.other_user_name || c.other_username}</span>
                   {c.unread_count > 0 && (
-                    <span style={{ background:'var(--rose)', color:'#fff', borderRadius:99, fontSize:10,
-                      padding:'1px 6px', fontWeight:700 }}>{c.unread_count}</span>
+                    <span style={{ background:'var(--rose)', color:'#fff', borderRadius:99, fontSize:10, padding:'1px 6px', fontWeight:700 }}>
+                      {c.unread_count}
+                    </span>
                   )}
                 </div>
                 <div style={{ fontSize: 12, color:'var(--text-muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -911,13 +941,14 @@ function MessagesPage() {
             </div>
           </div>
           <div style={{ flex:1, overflow:'auto', padding:24, display:'flex', flexDirection:'column', gap:12 }}>
-            {msgs.map(m => {
+            {msgs.map((m, i) => {
               const mine = m.sender_id === user?.id;
               return (
-                <div key={m.id} style={{ display:'flex', justifyContent: mine ? 'flex-end' : 'flex-start', gap:8 }}>
+                <div key={m.id || i} style={{ display:'flex', justifyContent: mine ? 'flex-end' : 'flex-start', gap:8 }}>
                   {!mine && <Avatar name={m.sender_name} size={28} />}
                   <div style={{
-                    maxWidth:'68%', padding:'10px 14px', borderRadius: mine ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                    maxWidth:'68%', padding:'10px 14px',
+                    borderRadius: mine ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
                     background: mine ? 'var(--rose)' : '#fff',
                     color: mine ? '#fff' : 'var(--text)',
                     fontSize: 14, lineHeight: 1.5,
@@ -933,7 +964,7 @@ function MessagesPage() {
             })}
             <div ref={msgsEndRef} />
           </div>
-          <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border)', display:'flex', gap:10 }}>
+          <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border)', display:'flex', gap:10, background:'#fff' }}>
             <input className="input" placeholder="Type a message…" value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && send()} />
@@ -952,6 +983,8 @@ function MessagesPage() {
     </div>
   );
 }
+ 
+  
 
 // ─── BLOOM AI PAGE ───────────────────────────────────────────────────────────────
 function BloomAIPage() {
