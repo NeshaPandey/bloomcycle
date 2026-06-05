@@ -766,7 +766,7 @@ function CommunityPage() {
                 display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                 {post.body}
               </p>
-              <div style={{ display: 'flex', gap: 16, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', gap: 16, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', alignItems:'center' }}>
                 <button style={{ background:'none', border:'none', color: post.liked_by_me ? 'var(--rose)' : 'var(--text-muted)',
                   fontSize: 13, cursor: 'pointer', display:'flex', alignItems:'center', gap:5 }}
                   onClick={e => { e.stopPropagation(); toggleLike(post); }}>
@@ -775,6 +775,17 @@ function CommunityPage() {
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
                   💬 {post.comment_count} comments
                 </span>
+                {post.author_username === user?.username && (
+                  <button style={{ background:'none', border:'none', color:'var(--text-muted)', fontSize:13, cursor:'pointer', marginLeft:'auto' }}
+                    onClick={async e => {
+                      e.stopPropagation();
+                      if (!window.confirm('Delete this post?')) return;
+                      await api.delete(`/community/posts/${post.id}`);
+                      fetchPosts();
+                    }}>
+                    🗑️ Delete
+                  </button>
+                )}
               </div>
             </div>
           ))}
