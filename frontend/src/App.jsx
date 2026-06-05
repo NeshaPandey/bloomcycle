@@ -831,6 +831,10 @@ function MessagesPage() {
       const convoId = activeConvo.conversation_id || activeConvo.id;
       api.get(`/messages/conversations/${convoId}`).then(r => setMsgs(r.data));
       socket?.emit('join:conversation', convoId);
+      // Mark as read when opening chat
+      socket?.emit('message:read', { conversationId: convoId });
+      // Also refresh convos to clear unread count
+      api.get('/messages/conversations').then(r => setConvos(r.data));
     }
   }, [activeConvo]);
 
@@ -952,11 +956,12 @@ function MessagesPage() {
             </div>
           </div>
           <div style={{ flex:1, overflow:'auto', padding:24, display:'flex', flexDirection:'column', gap:12 }}>
-            {msgs.map((m, i) => {
-              const mine = m.sender_id === user?.id;
-              return (
-                <div key={m.id || i} style={{ display:'flex', justifyContent: mine ? 'flex-end' : 'flex-start', gap:8 }}>
-                  {!mine && <Avatar name={m.sender_name} size={28} />}
+         {msgs.map((m, i) => {
+            const mine = m.sender_id === user?.id;
+            return (
+              <div key={m.id || i} style={{ display:'flex', justifyContent: mine ? 'flex-end' : 'flex-start', gap:8, alignItems:'flex-end' }}>
+                {!mine && <Avatar name={m.sender_name} size={28} />}
+                <div style={{ display:'flex', flexDirection: mine ? 'row-reverse' : 'row', alignItems:'flex-end', gap:6 }}>
                   <div style={{
                     maxWidth:'68%', padding:'10px 14px',
                     borderRadius: mine ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
@@ -970,9 +975,28 @@ function MessagesPage() {
                       {new Date(m.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}
                     </div>
                   </div>
+                  {mine && (
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm('Delete this message?')) return;
+                        try {
+                          await api.delete(`/messages/${m.id}`);
+                          setMsgs(prev => prev.filter(msg => msg.id !== m.id));
+                        } catch(e) { alert('Could not delete message'); }
+                      }}
+                      style={{
+                        background:'none', border:'none', cursor:'pointer',
+                        fontSize:12, opacity:0, transition:'opacity .2s',
+                        color:'var(--text-muted)', padding:'4px',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.opacity=1}
+                      onMouseLeave={e => e.currentTarget.style.opacity=0}
+                    >🗑️</button>
+                  )}
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
             <div ref={msgsEndRef} />
           </div>
           <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border)', display:'flex', gap:10, background:'#fff' }}>
