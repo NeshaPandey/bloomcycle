@@ -1,4 +1,4 @@
-/* BloomCycle — Soft-luxury design system */
+/* BloomCycle — Fully Responsive Design System */
 
 :root {
   --rose:        #f0657d;
@@ -21,34 +21,24 @@
   --radius-lg:   24px;
   --font-serif:  'Cormorant Garamond', Georgia, serif;
   --font-sans:   'DM Sans', system-ui, sans-serif;
+  --nav-height:  60px;
+  --sidebar-w:   220px;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 html { font-size: 16px; -webkit-font-smoothing: antialiased; }
-
-body {
-  font-family: var(--font-sans);
-  background: var(--cream);
-  color: var(--text);
-  min-height: 100vh;
-}
-
+body { font-family: var(--font-sans); background: var(--cream); color: var(--text); min-height: 100vh; }
 a { color: inherit; text-decoration: none; }
 button { cursor: pointer; font-family: var(--font-sans); }
 input, textarea, select { font-family: var(--font-sans); }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
 
-/* Utility classes */
 .serif { font-family: var(--font-serif); }
 .text-muted { color: var(--text-muted); }
-.text-rose { color: var(--rose); }
 
-/* Card */
 .card {
   background: var(--white);
   border-radius: var(--radius);
@@ -56,7 +46,6 @@ input, textarea, select { font-family: var(--font-sans); }
   border: 1px solid var(--border);
 }
 
-/* Button styles */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -67,29 +56,16 @@ input, textarea, select { font-family: var(--font-sans); }
   font-weight: 500;
   border: none;
   transition: all .2s ease;
+  white-space: nowrap;
 }
-
-.btn-primary {
-  background: var(--rose);
-  color: white;
-}
+.btn-primary { background: var(--rose); color: white; }
 .btn-primary:hover { background: var(--rose-dark); transform: translateY(-1px); box-shadow: var(--shadow); }
-
-.btn-outline {
-  background: transparent;
-  border: 1.5px solid var(--border);
-  color: var(--text);
-}
+.btn-primary:disabled { opacity: .6; transform: none; }
+.btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
 .btn-outline:hover { border-color: var(--rose); color: var(--rose); }
-
-.btn-ghost {
-  background: transparent;
-  color: var(--text-muted);
-  padding: 8px 12px;
-}
+.btn-ghost { background: transparent; color: var(--text-muted); padding: 8px 12px; }
 .btn-ghost:hover { background: var(--blush); color: var(--rose); }
 
-/* Input */
 .input {
   width: 100%;
   padding: 12px 16px;
@@ -104,7 +80,6 @@ input, textarea, select { font-family: var(--font-sans); }
 .input:focus { border-color: var(--rose); }
 .input::placeholder { color: var(--text-muted); }
 
-/* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -113,9 +88,158 @@ input, textarea, select { font-family: var(--font-sans); }
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.04); }
 }
-@keyframes slideIn {
-  from { transform: translateX(-100%); }
-  to   { transform: translateX(0); }
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
 }
 
 .fade-in { animation: fadeIn .4s ease both; }
+
+/* ── RESPONSIVE LAYOUT ── */
+
+/* Desktop sidebar */
+.app-shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--white);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0;
+  transition: transform .3s ease;
+  z-index: 50;
+}
+
+.main-content {
+  flex: 1;
+  overflow: auto;
+  background: var(--cream);
+  padding-bottom: 0;
+}
+
+/* Bottom nav — mobile only */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--white);
+  border-top: 1px solid var(--border);
+  z-index: 100;
+  padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+}
+
+.bottom-nav-items {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: all .15s;
+  min-width: 48px;
+}
+.bottom-nav-item.active { color: var(--rose); }
+.bottom-nav-item svg { width: 22px; height: 22px; }
+
+/* Mobile top header */
+.mobile-header {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .bottom-nav { display: block; }
+  .mobile-header { display: flex; }
+  .main-content {
+    padding-bottom: calc(70px + env(safe-area-inset-bottom));
+  }
+  .app-shell { flex-direction: column; }
+
+  /* Page padding on mobile */
+  .page-content {
+    padding: 16px !important;
+  }
+
+  /* Cards stack on mobile */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* Messages layout on mobile */
+  .messages-layout {
+    flex-direction: column;
+  }
+  .messages-sidebar {
+    width: 100% !important;
+    height: 100%;
+    border-right: none !important;
+  }
+  .messages-sidebar.hidden-mobile {
+    display: none;
+  }
+  .chat-window.hidden-mobile {
+    display: none;
+  }
+  .chat-window {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: var(--cream);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Calendar on mobile */
+  .calendar-card {
+    padding: 12px !important;
+  }
+
+  /* Auth page */
+  .auth-left { display: none !important; }
+  .auth-right { flex: 1 !important; padding: 24px 20px !important; }
+
+  /* Community posts */
+  .post-card { padding: 16px !important; }
+
+  /* Log page */
+  .log-content { padding: 16px !important; max-width: 100% !important; }
+
+  /* Bloom AI */
+  .ai-messages { padding: 16px !important; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .btn { padding: 9px 14px; font-size: 13px; }
+}
