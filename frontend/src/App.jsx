@@ -288,31 +288,27 @@ function HomePage() {
 
       {/* Key stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
-       <StatCard
-        label="Next Period"
-        value={predict?.days_until_next_period !== undefined
-          ? (predict.days_until_next_period <= 0 ? 'Today!' : `${predict.days_until_next_period}d away`)
-          : '—'}
-        sub={predict?.next_period_start || 'Log a cycle to predict'}
-        emoji="🩸"
-        color="#f0657d"
-      />
-      <StatCard
-        label="Current Phase"
-        value={predict?.current_phase || '—'}
-        sub={predict?.current_cycle_day ? `Day ${predict.current_cycle_day} of cycle` : 'No active cycle'}
-        emoji="🌙"
-        color="#9a7ab0"
-      />
-      <StatCard
-        label="Ovulation"
-        value={predict?.ovulation_date
-          ? `${Math.ceil((new Date(predict.ovulation_date) - new Date()) / 86400000)}d`
-          : '—'}
-        sub={predict?.ovulation_date || 'Predicted date'}
-        emoji="✨"
-        color="#70a8b0"
-      />
+        <StatCard
+          label="Next Period"
+          value={nextPeriodDays !== null ? (nextPeriodDays <= 0 ? 'Today!' : `${nextPeriodDays}d away`) : '—'}
+          sub={predict?.next_period_start || 'Log 2+ cycles to predict'}
+          emoji="🩸"
+          color="#f0657d"
+        />
+        <StatCard
+          label="Cycle Length"
+          value={predict?.avg_cycle_length ? `${predict.avg_cycle_length} days` : '—'}
+          sub="Average"
+          emoji="📅"
+          color="#9a7ab0"
+        />
+        <StatCard
+          label="Ovulation"
+          value={predict?.ovulation_date ? `${daysUntil(predict.ovulation_date)}d` : '—'}
+          sub={predict?.ovulation_date || 'Predicted date'}
+          emoji="✨"
+          color="#70a8b0"
+        />
       </div>
 
       {/* Fertile window banner */}
@@ -598,28 +594,6 @@ function LogPage() {
         </div>
       ))}
 
-      {/* Cycle logging buttons */}
-      <div className="card" style={{ padding: 20, marginBottom: 16, background: 'var(--rose-light)' }}>
-        <div style={{ fontWeight: 600, marginBottom: 12, color: 'var(--rose)' }}>🩸 Period Tracking</div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-primary" onClick={async () => {
-            try {
-              await api.post('/cycles/start', { start_date: date });
-              alert('✅ Period start logged!');
-            } catch(e) { alert('Error: ' + (e.response?.data?.error || e.message)); }
-          }}>🩸 Start Period Today</button>
-          <button className="btn btn-outline" onClick={async () => {
-            try {
-              const cycles = await api.get('/cycles');
-              const latest = cycles.data[0];
-              if (!latest) return alert('No cycle found to end');
-              await api.patch(`/cycles/${latest.id}/end`, { end_date: date });
-              alert('✅ Period end logged!');
-            } catch(e) { alert('Error: ' + (e.response?.data?.error || e.message)); }
-          }}>⬜ End Period Today</button>
-        </div>
-      </div>
-
       <button className="btn btn-primary" onClick={save} disabled={saving}
         style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: 16 }}>
         {saved ? '✓ Saved!' : saving ? 'Saving…' : 'Save Today\'s Log'}
@@ -766,7 +740,7 @@ function CommunityPage() {
                 display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                 {post.body}
               </p>
-              <div style={{ display: 'flex', gap: 16, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', alignItems:'center' }}>
+              <div style={{ display: 'flex', gap: 16, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
                 <button style={{ background:'none', border:'none', color: post.liked_by_me ? 'var(--rose)' : 'var(--text-muted)',
                   fontSize: 13, cursor: 'pointer', display:'flex', alignItems:'center', gap:5 }}
                   onClick={e => { e.stopPropagation(); toggleLike(post); }}>
@@ -775,17 +749,6 @@ function CommunityPage() {
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
                   💬 {post.comment_count} comments
                 </span>
-                {post.author_username === user?.username && (
-                  <button style={{ background:'none', border:'none', color:'var(--text-muted)', fontSize:13, cursor:'pointer', marginLeft:'auto' }}
-                    onClick={async e => {
-                      e.stopPropagation();
-                      if (!window.confirm('Delete this post?')) return;
-                      await api.delete(`/community/posts/${post.id}`);
-                      fetchPosts();
-                    }}>
-                    🗑️ Delete
-                  </button>
-                )}
               </div>
             </div>
           ))}
@@ -804,23 +767,7 @@ function MessagesPage() {
   const [input, setInput]      = useState('');
   const [searchQ, setSearchQ]  = useState('');
   const [searchRes, setSearchRes] = useState([]);
-  const [socket, setSocket]    = useState(null);
   const msgsEndRef = useRef(null);
-
-  // Setup Socket.IO
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const { io } = require('socket.io-client');
-    const s = io('https://bloomcycle-production.up.railway.app', {
-      auth: { token }
-    });
-    s.on('connect', () => console.log('Socket connected!'));
-    s.on('new:message', (msg) => {
-      setMsgs(prev => [...prev, msg]);
-    });
-    setSocket(s);
-    return () => s.disconnect();
-  }, []);
 
   useEffect(() => {
     api.get('/messages/conversations').then(r => setConvos(r.data));
@@ -828,13 +775,8 @@ function MessagesPage() {
 
   useEffect(() => {
     if (activeConvo) {
-      const convoId = activeConvo.conversation_id || activeConvo.id;
-      api.get(`/messages/conversations/${convoId}`).then(r => setMsgs(r.data));
-      socket?.emit('join:conversation', convoId);
-      // Mark as read when opening chat
-      socket?.emit('message:read', { conversationId: convoId });
-      // Also refresh convos to clear unread count
-      api.get('/messages/conversations').then(r => setConvos(r.data));
+      api.get(`/messages/conversations/${activeConvo.conversation_id || activeConvo.id}`)
+        .then(r => setMsgs(r.data));
     }
   }, [activeConvo]);
 
@@ -852,11 +794,8 @@ function MessagesPage() {
   const startConvo = async (targetUser) => {
     const { data } = await api.post('/messages/conversations', { target_user_id: targetUser.id });
     setSearchQ(''); setSearchRes([]);
-    const convo = {
-      conversation_id: data.conversation_id,
-      other_user_name: targetUser.display_name,
-      other_username: targetUser.username
-    };
+    const convo = { conversation_id: data.conversation_id, other_user_name: targetUser.display_name,
+      other_username: targetUser.username };
     setActiveConvo(convo);
     api.get('/messages/conversations').then(r => setConvos(r.data));
   };
@@ -864,19 +803,10 @@ function MessagesPage() {
   const send = async () => {
     if (!input.trim() || !activeConvo) return;
     const convoId = activeConvo.conversation_id || activeConvo.id;
-    const body = input;
+    await api.post('/messages', { conversation_id: convoId, body: input });
     setInput('');
-    // Send via socket for real-time
-    if (socket?.connected) {
-      socket.emit('send:message', { conversationId: convoId, body });
-    } else {
-      // Fallback to REST
-      await api.post('/messages', { conversation_id: convoId, body });
-      const r = await api.get(`/messages/conversations/${convoId}`);
-      setMsgs(r.data);
-    }
-    // Refresh conversation list
-    api.get('/messages/conversations').then(r => setConvos(r.data));
+    const r = await api.get(`/messages/conversations/${convoId}`);
+    setMsgs(r.data);
   };
 
   return (
@@ -914,7 +844,7 @@ function MessagesPage() {
           {convos.map(c => (
             <div key={c.id} onClick={() => setActiveConvo(c)}
               style={{
-                padding: '14px 16px', cursor: 'pointer',
+                padding: '14px 16px', cursor: 'pointer', transition: 'background .1s',
                 background: activeConvo?.id === c.id ? 'var(--rose-light)' : 'transparent',
                 borderBottom: '1px solid var(--border)',
                 display: 'flex', gap: 10, alignItems: 'center',
@@ -926,9 +856,8 @@ function MessagesPage() {
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{c.other_user_name || c.other_username}</span>
                   {c.unread_count > 0 && (
-                    <span style={{ background:'var(--rose)', color:'#fff', borderRadius:99, fontSize:10, padding:'1px 6px', fontWeight:700 }}>
-                      {c.unread_count}
-                    </span>
+                    <span style={{ background:'var(--rose)', color:'#fff', borderRadius:99, fontSize:10,
+                      padding:'1px 6px', fontWeight:700 }}>{c.unread_count}</span>
                   )}
                 </div>
                 <div style={{ fontSize: 12, color:'var(--text-muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -956,15 +885,13 @@ function MessagesPage() {
             </div>
           </div>
           <div style={{ flex:1, overflow:'auto', padding:24, display:'flex', flexDirection:'column', gap:12 }}>
-         {msgs.map((m, i) => {
-            const mine = m.sender_id === user?.id;
-            return (
-              <div key={m.id || i} style={{ display:'flex', justifyContent: mine ? 'flex-end' : 'flex-start', gap:8, alignItems:'flex-end' }}>
-                {!mine && <Avatar name={m.sender_name} size={28} />}
-                <div style={{ display:'flex', flexDirection: mine ? 'row-reverse' : 'row', alignItems:'flex-end', gap:6 }}>
+            {msgs.map(m => {
+              const mine = m.sender_id === user?.id;
+              return (
+                <div key={m.id} style={{ display:'flex', justifyContent: mine ? 'flex-end' : 'flex-start', gap:8 }}>
+                  {!mine && <Avatar name={m.sender_name} size={28} />}
                   <div style={{
-                    maxWidth:'68%', padding:'10px 14px',
-                    borderRadius: mine ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                    maxWidth:'68%', padding:'10px 14px', borderRadius: mine ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
                     background: mine ? 'var(--rose)' : '#fff',
                     color: mine ? '#fff' : 'var(--text)',
                     fontSize: 14, lineHeight: 1.5,
@@ -975,31 +902,12 @@ function MessagesPage() {
                       {new Date(m.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}
                     </div>
                   </div>
-                  {mine && (
-                    <button
-                      onClick={async () => {
-                        if (!window.confirm('Delete this message?')) return;
-                        try {
-                          await api.delete(`/messages/${m.id}`);
-                          setMsgs(prev => prev.filter(msg => msg.id !== m.id));
-                        } catch(e) { alert('Could not delete message'); }
-                      }}
-                      style={{
-                        background:'none', border:'none', cursor:'pointer',
-                        fontSize:12, opacity:0, transition:'opacity .2s',
-                        color:'var(--text-muted)', padding:'4px',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.opacity=1}
-                      onMouseLeave={e => e.currentTarget.style.opacity=0}
-                    >🗑️</button>
-                  )}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
             <div ref={msgsEndRef} />
           </div>
-          <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border)', display:'flex', gap:10, background:'#fff' }}>
+          <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border)', display:'flex', gap:10 }}>
             <input className="input" placeholder="Type a message…" value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && send()} />
@@ -1018,8 +926,6 @@ function MessagesPage() {
     </div>
   );
 }
- 
-  
 
 // ─── BLOOM AI PAGE ───────────────────────────────────────────────────────────────
 function BloomAIPage() {
