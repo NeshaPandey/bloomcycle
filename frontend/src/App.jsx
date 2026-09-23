@@ -100,7 +100,7 @@ function AuthPage() {
       else await register(form.email, form.username, form.password, form.display_name);
       nav('/');
     } catch (err) {
-      setError(err.response?.data?.error || 'Something went wrong');
+      setError(err.response?.data?.error || 'Something went wrong hii');
     } finally { setLoading(false); }
   };
 
