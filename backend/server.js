@@ -16,17 +16,22 @@ const userRoutes      = require('./routes/users');
 
 const { authenticateSocket } = require('./middleware/auth');
 
-const app    = express();
+const app = express();
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 const server = createServer(app);
-const io     = new Server(server, {
-  cors: { origin: true, credentials: true }
+
+const io = new Server(server, {
+  cors: {
+    origin: FRONTEND_URL,
+    credentials: true
+  }
 });
 
 // ── Middleware ────────────────────────────────────────────────
 app.use(helmet());
-app.use(cors({ 
-  origin: true,
-  credentials: true 
+app.use(cors({
+  origin: FRONTEND_URL,
+  credentials: true
 }));
 app.use(express.json());
 
